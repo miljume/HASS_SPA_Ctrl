@@ -11,7 +11,7 @@
 #include <WiFiClient.h>
 #include <ESP32WebServer.h>
 
-#include "index.h" 
+// #include "index.h" 
 
 /* DEVELOPMENT */
 #define idx_on_off 32

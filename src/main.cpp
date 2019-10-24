@@ -45,6 +45,32 @@ String last_power = "off";
 String last_heater = "off";
 String startup_status = "off";
 
+/* Function Declarations */
+void spa_on_off(void);
+void heater_on_off(void);
+void set_temp(int);
+void mode_auto(void);
+void mode_manual(void);
+void filter_on_off(void);
+void o3_on_off(void);
+void bubble_on(void);
+void bubble_off(void);
+void jet(void);
+void start_sequence(void);
+void handleNotFound(void);
+void WiFiReset(void);
+void receivedCallback(char* topic, byte* payload, unsigned int length);
+void mqttconnect(void);
+void setup(void);
+String createJsonResponse(void);
+void handleRoot(void);
+void updateStatus(void);
+void handleTemp(void);
+void handlePower(void);
+void handleHeater(void);
+void set_temp(int set_temp);
+void update_selector(int, int);
+
 ESP32WebServer server(80);
 
 /* change it with your ssid-password */
@@ -74,7 +100,7 @@ const char DB1 = 32; //HEATER
 const char DB2 = 27; //TEMP UPP
 const char DB3 = 26; //TEMP NER
 const char DB4 = 33; //FILTER
-const char DB5 = 18; //O3
+const char DB5 = 18; //O33aq<
 const char DB6 = 19; //BUBBLE
 const char DB7 = 21; //HEATER?
 
@@ -238,22 +264,22 @@ void setup() {
 }
 
 String createJsonResponse() {
-	StaticJsonBuffer<500> jsonBuffer;
+	StaticJsonDocument<500> JSONbuffer;
 
-	JsonObject &root = jsonBuffer.createObject();
-	JsonArray &typeValue = root.createNestedArray("type");
-	typeValue.add("success");
-	JsonArray &codeValue = root.createNestedArray("code");
-	codeValue.add(200);
-	JsonArray &powerValue = root.createNestedArray("power");
-	powerValue.add(power);
-	JsonArray &heaterValue = root.createNestedArray("heater");
-	heaterValue.add(heater);
-	JsonArray &tempValue= root.createNestedArray("temp");
-	tempValue.add(act_temp);
+	JsonObject root = JSONbuffer.to<JsonObject>();
+	JsonArray type = root.createNestedArray("type");
+	type.add("success");
+	JsonArray code = root.createNestedArray("code");
+	code.add(200);
+	JsonArray power = root.createNestedArray("power");
+	power.add(power);
+	JsonArray heater = root.createNestedArray("heater");
+	heater.add(heater);
+	JsonArray temp = root.createNestedArray("temp");
+	temp.add(act_temp);
 
 	String json;
-	root.prettyPrintTo(json);
+	json = serializeJsonPretty(JSONbuffer, Serial);
 	return json;
 }
 
@@ -383,7 +409,9 @@ void bubble_off() {
 }
 
 void set_temp(int set_temp) {
-	int difftemp = (set_temp - temperature); // Negativ difftemp -> minska temp, positiv difftemp -> �ka temp
+	void temp_down(int);
+	void temp_up(int);
+	int difftemp = (set_temp - temperature); // Negativ difftemp -> minska temp, positiv difftemp -> öka temp
 	Serial.println("Tempskillnad: ");
 	Serial.println(abs(difftemp));
 	if (difftemp<0) {
@@ -424,17 +452,17 @@ void temp_down(int difftemp) {
 void start_sequence() {
 	startup_status = "on";
 	Serial.println("Startar SPA");
-	update_log("SPA startar!");
-	mode_auto();
-	update_log("SPA Auto mode set");
+	//update_log("SPA startar!");
+	//mode_auto();
+	//update_log("SPA Auto mode set");
 	delay(500);
-	update_selector(idx_man_auto, 10); // Set mode auto
+	//update_selector(idx_man_auto, 10); // Set mode auto
 	delay(500);
-	update_switch(idx_ozone, 0); // Set O3 to OFF in Domoticz
+	//update_switch(idx_ozone, 0); // Set O3 to OFF in Domoticz
 	delay(500);
-	update_switch(idx_bubble, 0); // Set bubble to OFF in Domoticz
+	//update_switch(idx_bubble, 0); // Set bubble to OFF in Domoticz
 	delay(500);
-	update_selector(idx_set_temp, 20); // Set start temp 38 degrees in Domoticz
+	//update_selector(idx_set_temp, 20); // Set start temp 38 degrees in Domoticz
 	delay(500);
 	//heater_on_off(); //Switch heater ON
 	//delay(500);
@@ -443,103 +471,17 @@ void start_sequence() {
 
 void update_switch(int idx, int nvalue)
 {
-	StaticJsonBuffer<300> JSONbuffer;
-	JsonObject& JSONencoder = JSONbuffer.createObject();
-	JSONencoder["idx"] = idx;
-	JSONencoder["nvalue"] = nvalue;
-	char JSONmessageBuffer[100];
-	JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
-	Serial.println("Sending message to MQTT topic..");
-	Serial.println(JSONmessageBuffer);
 
-	if (mqtt_client.publish(DOMOTICZ_IN, JSONmessageBuffer) == true) {
-		Serial.println("Success sending message");
-	}
-	else {
-		Serial.println("Error sending message");
-	}
 }
 
 void update_temp(int idx, int nvalue, int svalue)
 {
-	StaticJsonBuffer<300> JSONbuffer;
-	JsonObject& JSONencoder = JSONbuffer.createObject();
-	JSONencoder["command"] = "udevice";
-	JSONencoder["idx"] = idx;
-	JSONencoder["nvalue"] = nvalue;
-	JSONencoder["svalue"] = svalue;
-	char JSONmessageBuffer[100];
-	JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
-	Serial.println("Sending message to MQTT topic..");
-	Serial.println(JSONmessageBuffer);
 
-	if (mqtt_client.publish(DOMOTICZ_IN, JSONmessageBuffer) == true) {
-		Serial.println("Success sending message");
-	}
-	else {
-		Serial.println("Error sending message");
-	}
 }
 
 void update_log(char message[50])
 {
-	StaticJsonBuffer<300> JSONbuffer;
-	JsonObject& JSONencoder = JSONbuffer.createObject();
-	JSONencoder["command"] = "addlogmessage";
-	JSONencoder["message"] = message;
-	char JSONmessageBuffer[100];
-	JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
-	Serial.println("Sending message to MQTT topic..");
-	Serial.println(JSONmessageBuffer);
 
-	if (mqtt_client.publish(DOMOTICZ_IN, JSONmessageBuffer) == true) {
-		Serial.println("Success sending message");
-	}
-	else {
-		Serial.println("Error sending message");
-	}
-}
-
-void update_selector(int idx, int level)
-{
-	StaticJsonBuffer<300> JSONbuffer;
-	JsonObject& JSONencoder = JSONbuffer.createObject();
-	JSONencoder["command"] = "switchlight";
-	JSONencoder["idx"] = idx;
-	JSONencoder["switchcmd"] = "Set Level";
-	JSONencoder["level"] = level;
-	char JSONmessageBuffer[100];
-	JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
-	Serial.println("Sending message to MQTT topic..");
-	Serial.println(JSONmessageBuffer);
-
-	if (mqtt_client.publish(DOMOTICZ_IN, JSONmessageBuffer) == true) {
-		Serial.println("Success sending message");
-	}
-	else {
-		Serial.println("Error sending message");
-	}
-}
-
-void update_setpoint(int idx, int temp)
-{
-	StaticJsonBuffer<300> JSONbuffer;
-	JsonObject& JSONencoder = JSONbuffer.createObject();
-	JSONencoder["command"] = "udevice";
-	JSONencoder["idx"] = idx;
-	JSONencoder["nvalue"] = 0;
-	JSONencoder["value"] = temp;
-	char JSONmessageBuffer[100];
-	JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
-	Serial.println("Sending message to MQTT topic..");
-	Serial.println(JSONmessageBuffer);
-
-	if (mqtt_client.publish(DOMOTICZ_IN, JSONmessageBuffer) == true) {
-		Serial.println("Success sending message");
-	}
-	else {
-		Serial.println("Error sending message");
-	}
 }
 
 void loop() {

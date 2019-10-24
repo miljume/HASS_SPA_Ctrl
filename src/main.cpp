@@ -100,7 +100,7 @@ const char DB1 = 32; //HEATER
 const char DB2 = 27; //TEMP UPP
 const char DB3 = 26; //TEMP NER
 const char DB4 = 33; //FILTER
-const char DB5 = 18; //O33aq<
+const char DB5 = 18; //O3
 const char DB6 = 19; //BUBBLE
 const char DB7 = 21; //HEATER?
 

@@ -102,9 +102,6 @@ void handleHeater(void);
 void set_temp(int set_temp);
 void temp_down(int);
 void temp_up(int);
-void update_selector(int, int);
-void update_switch(int, int);
-void update_temp(int, int, int);
 void IP_info(void);
 void wifiInit(void);
 bool checkPrefsStore(void);
@@ -139,10 +136,6 @@ const char DB4 = 33; //FILTER
 const char DB5 = 18; //O3
 const char DB6 = 19; //BUBBLE
 const char DB7 = 21; //HEATER?
-
-/* topics */
-#define DOMOTICZ_OUT    "domoticz/out"
-#define DOMOTICZ_IN     "domoticz/in"
 
 #define EEPROM_SIZE 64
 
@@ -316,19 +309,23 @@ if ( WiFi.status() == WL_CONNECTED )
 		start_sequence();
 	else {}
 	if (power == "on" && last_power != "on") {
-		update_switch(idx_on_off, 1); // Set SPA to On in Domoticz
+		mqtt_client.publish("homeassistant/spa_switches/on_off_state","on");
+		mqtt_client.publish("homeassistant/notify/spa","SPA Power ON");
 		last_power = "on";
 	}
 	else if (power == "off" && last_power != "off") {
-		update_switch(idx_on_off, 0); // Set SPA to Off in Domoticz
+		mqtt_client.publish("homeassistant/spa_switches/on_off_state","off");
+		mqtt_client.publish("homeassistant/notify/spa","SPA Power OFF");
 		last_power = "off";
 	}
 	if (heater == "on" && last_heater != "on") {
-		update_switch(idx_heater, 1); // Set SPA to On in Domoticz
+		mqtt_client.publish("homeassistant/spa_switches/heat_state","on");
+		mqtt_client.publish("homeassistant/notify/spa","SPA Heater ON");
 		last_heater = "on";
 	}
 	else if (heater == "off" && last_heater != "off") {
-		update_switch(idx_heater, 0); // Set SPA to Off in Domoticz
+		mqtt_client.publish("homeassistant/spa_switches/heat_state","off");
+		mqtt_client.publish("homeassistant/notify/spa","SPA Heater OFF");
 		last_heater = "off";
 	}
 
@@ -410,8 +407,8 @@ if ( WiFi.status() == WL_CONNECTED )
 				case 6: // ACTUAL TEMP
 					Serial.print("Actual Temp: ");
 					Serial.println(main_statusByte1, DEC);
-					act_temp = (int) main_statusByte1;
-					update_temp(idx_act_temp, 0, act_temp);
+					act_temp = (int)main_statusByte1;
+					mqtt_client.publish("homeassistant/spa_sensors/temp", (char*)act_temp);
 					break;
 				case 7: // SEKVENS 7
 					Serial.print("Sekvens 7, Value: ");
@@ -669,9 +666,9 @@ void set_temp(int set_temp) {
 void temp_up(int difftemp) {
 	Serial.println("Temp Upp");
 	Serial.println(difftemp);
+	mode_auto();
+	delay(500);
 	for (int i = -1;i < difftemp;i++) {
-		mode_auto();
-		delay(500);
 		digitalWrite(DB2, LOW);
 		delay(500);
 		digitalWrite(DB2, HIGH);
@@ -683,9 +680,9 @@ void temp_up(int difftemp) {
 void temp_down(int difftemp) {
 	Serial.println("Temp Ner");
 	Serial.println(difftemp);
+	mode_auto();
+	delay(500);
 	for (int i = -1;i < difftemp;i++) {
-		mode_auto();
-		delay(500);
 		digitalWrite(DB3, LOW);
 		delay(500);
 		digitalWrite(DB3, HIGH);
@@ -839,6 +836,7 @@ int getWifiStatus( int WiFiStatus )
         break;
     case WL_CONNECTED: // WL_CONNECTED = 3,
         Serial.printf(", WiFi CONNECTED \n");
+		mqtt_client.publish("homeassistant/notify/spa","WiFi Connected");
         break;
     case WL_CONNECT_FAILED: // WL_CONNECT_FAILED = 4,
         Serial.printf(", WiFi WL_CONNECT FAILED\n");
@@ -909,33 +907,11 @@ String getSsidPass( String s )
 void start_sequence() {
 	startup_status = "on";
 	Serial.println("Startar SPA");
-	//update_log("SPA startar!");
-	delay(500);
-	//update_selector(idx_man_auto, 10); // Set mode auto
-	delay(500);
-	//update_switch(idx_ozone, 0); // Set O3 to OFF in Domoticz
-	delay(500);
-	//update_switch(idx_bubble, 0); // Set bubble to OFF in Domoticz
-	delay(500);
-	//update_selector(idx_set_temp, 20); // Set start temp 38 degrees in Domoticz
+	mqtt_client.publish("homeassistant/notify/spa","SPA Startar");
+	mqtt_client.publish("homeassistant/spa_switches/ozone_state","off"); // Ozone
+	mqtt_client.publish("homeassistant/spa_switches/bubble_state","off"); // Bubble
 	delay(500);
 	//heater_on_off(); //Switch heater ON
 	//delay(500);
 	//update_switch(idx_heater, 1); // Set heater to ON in Domoticz
 }
-
-void update_switch(int idx, int nvalue)
-{
-
-}
-
-void update_temp(int idx, int nvalue, int svalue)
-{
-
-}
-
-void update_log(char message[50])
-{
-
-}
-

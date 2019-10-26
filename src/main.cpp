@@ -17,11 +17,9 @@
 #include <Preferences.h> // WiFi storage
 #include "index.h" 
 
-// Set your Static IP address
+// IP Config
 IPAddress local_IP(192, 168, 0, 90);
-// Set your Gateway IP address
 IPAddress gateway(192, 168, 0, 1);
-
 IPAddress subnet(255, 255, 255, 0);
 IPAddress primaryDNS(192, 168, 0, 1);   //optional
 IPAddress secondaryDNS(8, 8, 4, 4); //optional
@@ -30,6 +28,9 @@ const char* rssiSSID;        // NO MORE hard coded set AP, all SmartConfig
 const char* password;
 String PrefSSID, PrefPassword;   // used by preferences storage
 
+const char* mqttUser = "Micke";
+const char* mqttPassword = "Ljunggren1975";
+const char* mqtt_server = "192.168.0.101";
 
 int WFstatus;
 int UpCount = 0;
@@ -116,11 +117,6 @@ int getWifiStatus(int);
 String getMacAddress(void);
 
 ESP32WebServer server(80);
-
-/* this is the IP of PC/raspberry where you installed MQTT Server
-on Wins use "ipconfig"
-on Linux use "ifconfig" to get its IP address */
-const char* mqtt_server = "192.168.0.51";
 
 int temperature = 38;
 int act_temp = 0;
@@ -232,10 +228,10 @@ void mqttconnect() {
 		/* client ID */
 		String mqtt_clientId = "ESP32Client";
 		/* connect now */
-		if (mqtt_client.connect(mqtt_clientId.c_str())) {
+		if (mqtt_client.connect(mqtt_clientId.c_str(), mqttUser, mqttPassword)) {
 			Serial.println("connected");
 			/* subscribe topic with default QoS 0*/
-			mqtt_client.subscribe(DOMOTICZ_OUT);
+			mqtt_client.subscribe("homeassistant/spa_switches");
 		}
 		else {
 			Serial.print("failed, status code =");
@@ -591,45 +587,66 @@ void mode_auto() {
 }
 
 void spa_on_off() {
+	mode_auto();
+	delay(500);
 	digitalWrite(DB0, LOW);
 	delay(500);
 	digitalWrite(DB0, HIGH);
+	mode_manual();
 }
 
 void heater_on_off() {
+	mode_auto();
+	delay(500);
 	digitalWrite(DB1, LOW);
 	delay(500);
 	digitalWrite(DB1, HIGH);
+	mode_manual();
 }
 
 void jet() {
+	mode_auto();
+	delay(500);
 	digitalWrite(DB7, LOW);
 	delay(500);
 	digitalWrite(DB7, HIGH);
+	mode_manual();
 }
 
 void filter_on_off() {
+	mode_auto();
+	delay(500);
 	digitalWrite(DB4, LOW);
 	delay(500);
 	digitalWrite(DB4, HIGH);
+	mode_manual();
 }
 
 void o3_on_off() {
+	mode_auto();
+	delay(500);
 	digitalWrite(DB5, LOW);
 	delay(500);
 	digitalWrite(DB5, HIGH);
+	mode_manual();
 }
 
 void bubble_on() {
+	mode_auto();
+	delay(500);
 	digitalWrite(DB6, LOW);
 	delay(500);
 	digitalWrite(DB6, HIGH);
+	mode_manual();
 }
 
 void bubble_off() {
+	mode_auto();
+	delay(500);
 	digitalWrite(DB6, LOW);
 	delay(2000);
 	digitalWrite(DB6, HIGH);
+	mode_manual();
 }
 
 void set_temp(int set_temp) {
@@ -653,22 +670,28 @@ void temp_up(int difftemp) {
 	Serial.println("Temp Upp");
 	Serial.println(difftemp);
 	for (int i = -1;i < difftemp;i++) {
+		mode_auto();
+		delay(500);
 		digitalWrite(DB2, LOW);
 		delay(500);
 		digitalWrite(DB2, HIGH);
 		delay(500);
 	}
+	mode_manual();
 }
 
 void temp_down(int difftemp) {
 	Serial.println("Temp Ner");
 	Serial.println(difftemp);
 	for (int i = -1;i < difftemp;i++) {
+		mode_auto();
+		delay(500);
 		digitalWrite(DB3, LOW);
 		delay(500);
 		digitalWrite(DB3, HIGH);
 		delay(500);
 	}
+	mode_manual();
 }
 
 void wifiInit() //
@@ -887,8 +910,6 @@ void start_sequence() {
 	startup_status = "on";
 	Serial.println("Startar SPA");
 	//update_log("SPA startar!");
-	//mode_auto();
-	//update_log("SPA Auto mode set");
 	delay(500);
 	//update_selector(idx_man_auto, 10); // Set mode auto
 	delay(500);

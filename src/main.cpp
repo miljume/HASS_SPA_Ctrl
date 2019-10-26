@@ -30,10 +30,6 @@ const char* rssiSSID;        // NO MORE hard coded set AP, all SmartConfig
 const char* password;
 String PrefSSID, PrefPassword;   // used by preferences storage
 
-/* change it with your ssid-password */
-// //const char* ssid = "BORKAN1";
-// const char* ssid = "AKKTUSTAKKI";
-// const char* password = "mickeljunggrensnetwork";
 
 int WFstatus;
 int UpCount = 0;
@@ -67,6 +63,7 @@ String MAC;
 //#define idx_setpoint 34
 //#define idx_bubble 103
 
+// Change to monitor live values from SPA Unit
 #define spa_ctrl_serial 0
 #define spa_main_serial 1
 
@@ -102,7 +99,11 @@ void handleTemp(void);
 void handlePower(void);
 void handleHeater(void);
 void set_temp(int set_temp);
+void temp_down(int);
+void temp_up(int);
 void update_selector(int, int);
+void update_switch(int, int);
+void update_temp(int, int, int);
 void IP_info(void);
 void wifiInit(void);
 bool checkPrefsStore(void);
@@ -246,6 +247,9 @@ void mqttconnect() {
 	}
 }
 
+///////////////////////////////////////
+//			Setup					//
+//////////////////////////////////////
 void setup() {
 	Serial.begin(115200);
 	Ctrl_debug.begin(9708, SERIAL_8N1, 16, 17); //Initialize Ctrl debug
@@ -299,7 +303,181 @@ void setup() {
 	if (!mqtt_client.connected()) {
 		mqttconnect();
 	}
+} // End setup()
+
+///////////////////////////////////////
+//			Main loop				//
+//////////////////////////////////////
+void loop() {
+
+if ( WiFi.status() == WL_CONNECTED )
+  {   	// Main connected loop
+  		// ANY MAIN LOOP CODE HERE
+
+	mqtt_client.loop();     // internal household function for MQTT
+
+	if (startup_status == "off")
+		start_sequence();
+	else {}
+	if (power == "on" && last_power != "on") {
+		update_switch(idx_on_off, 1); // Set SPA to On in Domoticz
+		last_power = "on";
+	}
+	else if (power == "off" && last_power != "off") {
+		update_switch(idx_on_off, 0); // Set SPA to Off in Domoticz
+		last_power = "off";
+	}
+	if (heater == "on" && last_heater != "on") {
+		update_switch(idx_heater, 1); // Set SPA to On in Domoticz
+		last_heater = "on";
+	}
+	else if (heater == "off" && last_heater != "off") {
+		update_switch(idx_heater, 0); // Set SPA to Off in Domoticz
+		last_heater = "off";
+	}
+
+	server.handleClient();
+
+	/* SERIAL RECEIVE FROM SPA KEYBOARD UNIT */
+	if (spa_ctrl_serial == 1){
+		if (Ctrl_debug.available()>0) { // there are bytes in the serial buffer to read
+			ctrl_startByte = Ctrl_debug.read(); // read in the next byte
+			if (ctrl_startByte == 0xA5) { //startOfMessage
+				Serial.println("*** RECEIVED FROM CTRL ***");
+				ctrl_statusSeq = Ctrl_debug.read();
+				Serial.println(ctrl_statusSeq, HEX);
+				ctrl_statusByte1 = Ctrl_debug.read();
+				Serial.println(ctrl_statusByte1, HEX);
+
+				switch (ctrl_statusSeq) {
+				case 1: // SPA ON/OFF
+					if (ctrl_statusByte1 == 0)
+					{
+						Serial.println("SPA Off");
+						power = "off";
+					}
+					else if (ctrl_statusByte1 == 1)
+					{
+						Serial.println("SPA On");
+						power = "on";
+					}
+					break;
+				case 2: // SEKVENS 2
+					Serial.print("Sekvens 2, Value: ");
+					Serial.println(ctrl_statusByte1, HEX);
+					break;
+				case 3: // HEATER ON/OFF
+					if (ctrl_statusByte1 == 0)
+					{
+						Serial.println("Heater Off");
+						heater = "off";
+					}
+					else if (ctrl_statusByte1 == 1)
+					{
+						Serial.println("Heater On");
+						heater = "on";
+					}
+					break;
+				case 4: // SEKVENS 4
+					Serial.print("Sekvens 4, Value: ");
+					Serial.println(ctrl_statusByte1, HEX);
+					break;
+				case 5: // TEMP
+					Serial.print("Ny Temp ");
+					Serial.println(ctrl_statusByte1, DEC);
+					break;
+				case 10: // SEKVENS 10
+					Serial.print("Sekvens 10, Value: ");
+					Serial.println(ctrl_statusByte1, HEX);
+					break;
+				case 11: // SEKVENS 11
+					Serial.print("Sekvens 11, Value: ");
+					Serial.println(ctrl_statusByte1, HEX);
+					break;
+				}
+			}
+			else {}
+		}
+	}
+	/* SERIAL RECEIVE FROM SPA MAIN UNIT */
+	if (spa_main_serial == 1){
+		if (Main_debug.available()>0) { // there are bytes in the serial buffer to read
+			main_startByte = Main_debug.read(); // read in the next byte
+			if (main_startByte == 0xA5) { //startOfMessage
+				Serial.println("*** RECEIVED FROM MAIN ***");
+				main_startByte = Main_debug.read();
+				Serial.println(main_statusSeq, HEX);
+				main_statusByte1 = Main_debug.read();
+				Serial.println(main_statusByte1, HEX);
+
+				switch (main_statusSeq) {
+				case 6: // ACTUAL TEMP
+					Serial.print("Actual Temp: ");
+					Serial.println(main_statusByte1, DEC);
+					act_temp = (int) main_statusByte1;
+					update_temp(idx_act_temp, 0, act_temp);
+					break;
+				case 7: // SEKVENS 7
+					Serial.print("Sekvens 7, Value: ");
+					Serial.println(main_statusByte1, HEX);
+					break;
+				case 8: // SEKVENS 8
+					Serial.print("Sekvens 8, Value: ");
+					Serial.println(main_statusByte1, HEX);
+					break;
+				case 9: // SEKVENS 9
+					Serial.print("Sekvens 9, Value: ");
+					Serial.println(main_statusByte1, HEX);
+					break;
+				case 12: // SEKVENS 12
+					Serial.print("Sekvens 12, Value: ");
+					Serial.println(main_statusByte1, DEC);
+					break;
+				case 13: // SEKVENS 13
+					Serial.print("Sekvens 13, Value: ");
+					Serial.println(main_statusByte1, HEX);
+					break;
+				case 14: // SEKVENS 14
+					Serial.print("Sekvens 14, Value: ");
+					Serial.println(main_statusByte1, HEX);
+					break;
+				}
+			}
+			else {}
+	}
 }
+
+  }   // END Main connected loop()
+  else
+  {      // WiFi DOWN
+
+    //  wifi down start LED flasher here
+
+    WFstatus = getWifiStatus( WFstatus );
+    WiFi.begin(  PrefSSID.c_str() , PrefPassword.c_str() );
+    int WLcount = 0;
+    while (  WiFi.status() != WL_CONNECTED && WLcount < 200 )
+    {
+      delay( 100 );
+      Serial.printf(".");
+
+        if (UpCount >= 60)  // keep from scrolling sideways forever
+        {
+           UpCount = 0;
+           Serial.printf("\n");
+        }
+        ++UpCount;
+        ++WLcount;
+    }
+
+    if( getWifiStatus( WFstatus ) == 3 )   //wifi returns
+    { 
+      // stop LED flasher, wifi going up
+    }
+   delay( 1000 );
+  } // END WiFi down
+
+} // END Loop()
 
 String createJsonResponse() {
 	StaticJsonDocument<500> JSONbuffer;
@@ -320,6 +498,10 @@ String createJsonResponse() {
 	json = serializeJsonPretty(JSONbuffer, Serial);
 	return json;
 }
+
+///////////////////////////////////////
+//			Web page functions		//
+//////////////////////////////////////
 
 void handleRoot() {
 	String s = MAIN_page; //Read HTML contents
@@ -373,6 +555,10 @@ void handleHeater() {
 	}
 	server.send(200, "text/plane", "HeaterState");
 }
+
+///////////////////////////////////////
+//		END Web page functions		//
+//////////////////////////////////////
 
 void mode_manual() {
 	pinMode(DB0, INPUT);
@@ -447,8 +633,6 @@ void bubble_off() {
 }
 
 void set_temp(int set_temp) {
-	void temp_down(int);
-	void temp_up(int);
 	int difftemp = (set_temp - temperature); // Negativ difftemp -> minska temp, positiv difftemp -> öka temp
 	Serial.println("Tempskillnad: ");
 	Serial.println(abs(difftemp));
@@ -733,175 +917,4 @@ void update_log(char message[50])
 {
 
 }
-
-void loop() {
-
-if ( WiFi.status() == WL_CONNECTED )
-  {   	// Main connected loop
-  		// ANY MAIN LOOP CODE HERE
-
-	mqtt_client.loop();     // internal household function for MQTT
-
-	if (startup_status == "off")
-		start_sequence();
-	else {}
-	if (power == "on" && last_power != "on") {
-		update_switch(idx_on_off, 1); // Set SPA to On in Domoticz
-		last_power = "on";
-	}
-	else if (power == "off" && last_power != "off") {
-		update_switch(idx_on_off, 0); // Set SPA to Off in Domoticz
-		last_power = "off";
-	}
-	if (heater == "on" && last_heater != "on") {
-		update_switch(idx_heater, 1); // Set SPA to On in Domoticz
-		last_heater = "on";
-	}
-	else if (heater == "off" && last_heater != "off") {
-		update_switch(idx_heater, 0); // Set SPA to Off in Domoticz
-		last_heater = "off";
-	}
-
-	server.handleClient();
-
-	/* SERIAL RECEIVE FROM SPA KEYBOARD UNIT */
-	if (spa_ctrl_serial == 1){
-		if (Ctrl_debug.available()>0) { // there are bytes in the serial buffer to read
-			ctrl_startByte = Ctrl_debug.read(); // read in the next byte
-			if (ctrl_startByte == 0xA5) { //startOfMessage
-				Serial.println("*** RECEIVED FROM CTRL ***");
-				ctrl_statusSeq = Ctrl_debug.read();
-				Serial.println(ctrl_statusSeq, HEX);
-				ctrl_statusByte1 = Ctrl_debug.read();
-				Serial.println(ctrl_statusByte1, HEX);
-
-				switch (ctrl_statusSeq) {
-				case 1: // SPA ON/OFF
-					if (ctrl_statusByte1 == 0)
-					{
-						Serial.println("SPA Off");
-						power = "off";
-					}
-					else if (ctrl_statusByte1 == 1)
-					{
-						Serial.println("SPA On");
-						power = "on";
-					}
-					break;
-				case 2: // SEKVENS 2
-					Serial.print("Sekvens 2, Value: ");
-					Serial.println(ctrl_statusByte1, HEX);
-					break;
-				case 3: // HEATER ON/OFF
-					if (ctrl_statusByte1 == 0)
-					{
-						Serial.println("Heater Off");
-						heater = "off";
-					}
-					else if (ctrl_statusByte1 == 1)
-					{
-						Serial.println("Heater On");
-						heater = "on";
-					}
-					break;
-				case 4: // SEKVENS 4
-					Serial.print("Sekvens 4, Value: ");
-					Serial.println(ctrl_statusByte1, HEX);
-					break;
-				case 5: // TEMP
-					Serial.print("Ny Temp ");
-					Serial.println(ctrl_statusByte1, DEC);
-					break;
-				case 10: // SEKVENS 10
-					Serial.print("Sekvens 10, Value: ");
-					Serial.println(ctrl_statusByte1, HEX);
-					break;
-				case 11: // SEKVENS 11
-					Serial.print("Sekvens 11, Value: ");
-					Serial.println(ctrl_statusByte1, HEX);
-					break;
-				}
-			}
-			else {}
-		}
-	}
-	/* SERIAL RECEIVE FROM SPA MAIN UNIT */
-	if (spa_main_serial == 1){
-		if (Main_debug.available()>0) { // there are bytes in the serial buffer to read
-			main_startByte = Main_debug.read(); // read in the next byte
-			if (main_startByte == 0xA5) { //startOfMessage
-				Serial.println("*** RECEIVED FROM MAIN ***");
-				main_startByte = Main_debug.read();
-				Serial.println(main_statusSeq, HEX);
-				main_statusByte1 = Main_debug.read();
-				Serial.println(main_statusByte1, HEX);
-
-				switch (main_statusSeq) {
-				case 6: // ACTUAL TEMP
-					Serial.print("Actual Temp: ");
-					Serial.println(main_statusByte1, DEC);
-					act_temp = (int) main_statusByte1;
-					update_temp(idx_act_temp, 0, act_temp);
-					break;
-				case 7: // SEKVENS 7
-					Serial.print("Sekvens 7, Value: ");
-					Serial.println(main_statusByte1, HEX);
-					break;
-				case 8: // SEKVENS 8
-					Serial.print("Sekvens 8, Value: ");
-					Serial.println(main_statusByte1, HEX);
-					break;
-				case 9: // SEKVENS 9
-					Serial.print("Sekvens 9, Value: ");
-					Serial.println(main_statusByte1, HEX);
-					break;
-				case 12: // SEKVENS 12
-					Serial.print("Sekvens 12, Value: ");
-					Serial.println(main_statusByte1, DEC);
-					break;
-				case 13: // SEKVENS 13
-					Serial.print("Sekvens 13, Value: ");
-					Serial.println(main_statusByte1, HEX);
-					break;
-				case 14: // SEKVENS 14
-					Serial.print("Sekvens 14, Value: ");
-					Serial.println(main_statusByte1, HEX);
-					break;
-				}
-			}
-			else {}
-	}
-}
-
-  }   // END Main connected loop()
-  else
-  {      // WiFi DOWN
-
-    //  wifi down start LED flasher here
-
-    WFstatus = getWifiStatus( WFstatus );
-    WiFi.begin(  PrefSSID.c_str() , PrefPassword.c_str() );
-    int WLcount = 0;
-    while (  WiFi.status() != WL_CONNECTED && WLcount < 200 )
-    {
-      delay( 100 );
-      Serial.printf(".");
-
-        if (UpCount >= 60)  // keep from scrolling sideways forever
-        {
-           UpCount = 0;
-           Serial.printf("\n");
-        }
-        ++UpCount;
-        ++WLcount;
-    }
-
-    if( getWifiStatus( WFstatus ) == 3 )   //wifi returns
-    { 
-      // stop LED flasher, wifi going up
-    }
-   delay( 1000 );
-  } // END WiFi down
-
-} // END Loop()
 

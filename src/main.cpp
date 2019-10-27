@@ -39,30 +39,12 @@ String getSsid;
 String getPass;
 String MAC;
 
+int heartbeat_inteval = 30000;
+unsigned long time_now = 0;
+
 // SSID storage
   Preferences preferences;       // declare class object
 // END SSID storage
-
-/* DEVELOPMENT */
-#define idx_on_off 32
-#define idx_man_auto 33
-#define idx_set_temp  31
-#define idx_act_temp 73
-#define idx_heater  37
-#define idx_filter  35
-#define idx_ozone  36
-#define idx_setpoint  34
-#define idx_bubble  38
-
-/* STUGAN */
-//#define idx_on_off 100
-//#define idx_man_auto 106
-//#define idx_set_temp  107
-//#define idx_act_temp 73
-//#define idx_heater 104
-//#define idx_ozone 101
-//#define idx_setpoint 34
-//#define idx_bubble 103
 
 // Change to monitor live values from SPA Unit
 #define spa_ctrl_serial 0
@@ -392,6 +374,14 @@ if ( WiFi.status() == WL_CONNECTED )
 			else {}
 		}
 	}
+
+		/* Heartbeat status update */
+    if(millis() > time_now + heartbeat_inteval){
+        mqtt_client.publish("homeassistant/spa_switches/heat_state",heater.c_str());
+		mqtt_client.publish("homeassistant/spa_switches/power_state",power.c_str());
+		time_now = millis();
+	}
+
 	/* SERIAL RECEIVE FROM SPA MAIN UNIT */
 	if (spa_main_serial == 1){
 		if (Main_debug.available()>0) { // there are bytes in the serial buffer to read
@@ -908,10 +898,11 @@ void start_sequence() {
 	startup_status = "on";
 	Serial.println("Startar SPA");
 	mqtt_client.publish("homeassistant/notify/spa","SPA Startar");
+	mqtt_client.publish("homeassistant/spa_switches/on_off_state","off"); // On/Off
 	mqtt_client.publish("homeassistant/spa_switches/ozone_state","off"); // Ozone
 	mqtt_client.publish("homeassistant/spa_switches/bubble_state","off"); // Bubble
-	delay(500);
-	//heater_on_off(); //Switch heater ON
+	mqtt_client.publish("homeassistant/spa_switches/heat_state","off"); // Heater
+	spa_on_off(); // Turn SPA On
 	//delay(500);
 	//update_switch(idx_heater, 1); // Set heater to ON in Domoticz
 }

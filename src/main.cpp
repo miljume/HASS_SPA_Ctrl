@@ -189,13 +189,6 @@ void handleNotFound() {
 	server.send(404, "text/plain", message);
 }
 
-void WiFiReset() {
-	WiFi.persistent(false);
-	WiFi.disconnect();
-	WiFi.mode(WIFI_OFF);
-	WiFi.mode(WIFI_STA);
-}
-
 void mqttconnect() {
 	/* Loop until reconnected */
 	while (!mqtt_client.connected()) {

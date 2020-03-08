@@ -47,7 +47,7 @@ unsigned long time_now = 0;
 // END SSID storage
 
 // Change to monitor live values from SPA Unit
-#define spa_ctrl_serial 0
+#define spa_ctrl_serial 1
 #define spa_main_serial 1
 
 String power = "off";

@@ -339,7 +339,7 @@ if ( WiFi.status() == WL_CONNECTED )
 					{
 						Serial.println("Heater Off");
 						heater = "off";
-					}
+ 					}
 					else if (ctrl_statusByte1 == 1)
 					{
 						Serial.println("Heater On");
@@ -381,7 +381,7 @@ if ( WiFi.status() == WL_CONNECTED )
 			main_startByte = Main_debug.read(); // read in the next byte
 			if (main_startByte == 0xA5) { //startOfMessage
 				Serial.println("*** RECEIVED FROM MAIN ***");
-				main_startByte = Main_debug.read();
+				main_statusSeq = Main_debug.read();
 				Serial.println(main_statusSeq, HEX);
 				main_statusByte1 = Main_debug.read();
 				Serial.println(main_statusByte1, HEX);

@@ -277,6 +277,10 @@ void loop() {
 if ( WiFi.status() == WL_CONNECTED )
   {   	// Main connected loop
   		// ANY MAIN LOOP CODE HERE
+		  
+	if (!mqtt_client.connected()) {
+	mqttconnect();
+	}
 
 	mqtt_client.loop();     // internal household function for MQTT
 

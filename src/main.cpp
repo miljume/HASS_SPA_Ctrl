@@ -15,7 +15,8 @@
 #include <ESP32WebServer.h>
 #include <string.h>
 #include <Preferences.h> // WiFi storage
-#include "index.h" 
+#include "index.h"
+#include <RemoteDebug.h>
 
 // IP Config
 IPAddress local_IP(192, 168, 0, 90);
@@ -49,6 +50,8 @@ unsigned long time_now = 0;
 // Change to monitor live values from SPA Unit
 #define spa_ctrl_serial 1
 #define spa_main_serial 1
+
+#define HOST_NAME "mspa"
 
 String power = "off";
 String heater = "off";
@@ -96,6 +99,8 @@ int getWifiStatus(int);
 String getMacAddress(void);
 
 ESP32WebServer server(80);
+
+RemoteDebug Debug; // Enable RemoteDebug
 
 int temperature = 38;
 int act_temp = 0;
@@ -223,6 +228,9 @@ void setup() {
     Serial.println("STA Failed to configure");
     }
 
+    String hostNameWifi = HOST_NAME;
+    hostNameWifi.concat(".local");
+
 ///* initialize EEPROM */
 //if (!EEPROM.begin(EEPROM_SIZE))
 //{
@@ -243,9 +251,19 @@ void setup() {
 	Serial.println("WiFi connected");
 	Serial.println("IP address: ");
 	Serial.println(WiFi.localIP());
-	if (MDNS.begin("esp32")) {
-		Serial.println("MDNS responder started");
+	if (MDNS.begin(HOST_NAME)) {
+        Serial.print("* MDNS responder started. Hostname -> ");
+        Serial.println(HOST_NAME);
 	}
+
+	MDNS.addService("telnet", "tcp", 23); //Start Telnet for RemoteDebug
+
+	// Initialize RemoteDebug
+
+	Debug.begin(HOST_NAME); // Initialize the WiFi server
+    Debug.setResetCmdEnabled(true); // Enable the reset command
+	Debug.showProfiler(true); // Profiler (Good to measure times, to optimize codes)
+	Debug.showColors(true); // Colors
 
 	server.on("/", handleRoot);
 	server.on("/status.json", updateStatus);
@@ -267,12 +285,21 @@ void setup() {
 	if (!mqtt_client.connected()) {
 		mqttconnect();
 	}
+
 } // End setup()
 
 ///////////////////////////////////////
 //			Main loop				//
 //////////////////////////////////////
 void loop() {
+
+//RemoteDebug examples
+
+debugV("* This is a message of debug level VERBOSE");
+debugD("* This is a message of debug level DEBUG");
+debugI("* This is a message of debug level INFO");
+debugW("* This is a message of debug level WARNING");
+debugE("* This is a message of debug level ERROR");
 
 if ( WiFi.status() == WL_CONNECTED )
   {   	// Main connected loop
@@ -308,6 +335,8 @@ if ( WiFi.status() == WL_CONNECTED )
 		last_heater = "off";
 	}
 
+    Debug.handle();
+	
 	server.handleClient();
 
 	/* SERIAL RECEIVE FROM SPA KEYBOARD UNIT */

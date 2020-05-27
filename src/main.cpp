@@ -349,6 +349,7 @@ if ( WiFi.status() == WL_CONNECTED )
 				Serial.println(ctrl_statusSeq, HEX);
 				ctrl_statusByte1 = Ctrl_debug.read();
 				Serial.println(ctrl_statusByte1, HEX);
+				Debug.printf("RECEIVED FROM CTRL: %X %X", ctrl_statusSeq, ctrl_statusByte1);
 
 				switch (ctrl_statusSeq) {
 				case 1: // SPA ON/OFF
@@ -418,6 +419,7 @@ if ( WiFi.status() == WL_CONNECTED )
 				Serial.println(main_statusSeq, HEX);
 				main_statusByte1 = Main_debug.read();
 				Serial.println(main_statusByte1, HEX);
+				Debug.printf("RECEIVED FROM MAIN: %X %X", main_statusSeq, main_statusByte1);
 
 				switch (main_statusSeq) {
 				case 6: // ACTUAL TEMP

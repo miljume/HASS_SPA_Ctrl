@@ -442,7 +442,7 @@ if ( WiFi.status() == WL_CONNECTED )
 					Serial.println(ctrl_statusByte1, HEX);
 					break;
 				case 11: // SEKVENS 11
-					Serial.print("Sekvens 11, Value: TEST");
+					Serial.print("Sekvens 11, Value: ");
 					Serial.println(ctrl_statusByte1, HEX);
 					break;
 				}

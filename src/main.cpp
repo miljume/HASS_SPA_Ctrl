@@ -101,6 +101,7 @@ int getWifiStatus(int);
 String getMacAddress(void);
 
 ESP32WebServer server(80);
+ESP32WebServer debug_server(81);
 
 RemoteDebug Debug; // Enable RemoteDebug
 
@@ -262,14 +263,24 @@ void setup() {
         Serial.println(HOST_NAME);
 	}
 
-	MDNS.addService("telnet", "tcp", 23); //Start Telnet for RemoteDebug
+	//MDNS.addService("telnet", "tcp", 23); //Start Telnet for RemoteDebug
+	MDNS.addService("http", "tcp", 81);   // Web server
+	
+	// Initialize debug webserver
 
+	debug_server.on("/", handleRoot);
+	debug_server.onNotFound(handleNotFound);
+	debug_server.begin();
+	Serial.println("* HTTP debug server started");
+	
 	// Initialize RemoteDebug
 
 	Debug.begin(HOST_NAME); // Initialize the WiFi server
     Debug.setResetCmdEnabled(true); // Enable the reset command
 	Debug.showProfiler(true); // Profiler (Good to measure times, to optimize codes)
 	Debug.showColors(true); // Colors
+
+	// MSPA WebServer init
 
 	server.on("/", handleRoot);
 	server.on("/status.json", updateStatus);

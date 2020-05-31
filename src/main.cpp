@@ -200,11 +200,13 @@ void mqttconnect() {
 	/* Loop until reconnected */
 	while (!mqtt_client.connected()) {
 		Serial.print("MQTT connecting ...");
+		Debug.printf("MQTT connecting ...");
 		/* client ID */
 		String mqtt_clientId = "ESP32Client";
 		/* connect now */
 		if (mqtt_client.connect(mqtt_clientId.c_str(), mqttUser, mqttPassword)) {
 			Serial.println("connected");
+			Debug.printf("MQTT connected!");
 			/* subscribe topic with default QoS 0*/
 			mqtt_client.subscribe("homeassistant/spa_switches");
 		}
@@ -228,6 +230,8 @@ void setup() {
 
     if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
     Serial.println("STA Failed to configure");
+	Debug.printf("STA Failed to configure");
+	
     }
 
     String hostNameWifi = HOST_NAME;
@@ -277,7 +281,7 @@ void setup() {
 
 	server.begin();
 	Serial.println("HTTP server started");
-
+	Debug.printf("HTTP Server started!");
 	/* configure the MQTT server with IPaddress and port */
 	mqtt_client.setServer(mqtt_server, 1883);
 	/* this receivedCallback function will be invoked when client received subscribed topic */
@@ -344,11 +348,11 @@ ArduinoOTA.handle();
 
 //RemoteDebug examples
 
-debugV("* This is a message of debug level VERBOSE");
-debugD("* This is a message of debug level DEBUG");
-debugI("* This is a message of debug level INFO");
-debugW("* This is a message of debug level WARNING");
-debugE("* This is a message of debug level ERROR");
+// debugV("* This is a message of debug level VERBOSE");
+// debugD("* This is a message of debug level DEBUG");
+// debugI("* This is a message of debug level INFO");
+// debugW("* This is a message of debug level WARNING");
+// debugE("* This is a message of debug level ERROR");
 
 if ( WiFi.status() == WL_CONNECTED )
   {   	// Main connected loop

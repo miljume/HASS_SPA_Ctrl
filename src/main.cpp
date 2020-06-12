@@ -391,7 +391,7 @@ if ( WiFi.status() == WL_CONNECTED )
 					Serial.print("Actual Temp: ");
 					Serial.println(main_statusByte1, DEC);
 					act_temp = (int)main_statusByte1;
-					mqtt_client.publish("homeassistant/spa_sensors/temp", (char*)act_temp);
+					//mqtt_client.publish("homeassistant/spa_sensors/temp", (char*)act_temp);
 					break;
 				case 7: // SEKVENS 7
 					Serial.print("Sekvens 7, Value: ");

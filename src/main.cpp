@@ -15,10 +15,7 @@
 #include <ESP32WebServer.h>
 #include <string.h>
 #include <Preferences.h> // WiFi storage
-#include "index.h"
-#include <RemoteDebug.h>
-#include <WiFiUdp.h>
-#include <ArduinoOTA.h>
+#include "index.h" 
 
 // IP Config
 IPAddress local_IP(192, 168, 0, 90);
@@ -52,8 +49,6 @@ unsigned long time_now = 0;
 // Change to monitor live values from SPA Unit
 #define spa_ctrl_serial 1
 #define spa_main_serial 1
-
-#define HOST_NAME "mspa"
 
 String power = "off";
 String heater = "off";
@@ -101,8 +96,6 @@ int getWifiStatus(int);
 String getMacAddress(void);
 
 ESP32WebServer server(80);
-
-RemoteDebug Debug; // Enable RemoteDebug
 
 int temperature = 38;
 int act_temp = 0;
@@ -230,9 +223,6 @@ void setup() {
     Serial.println("STA Failed to configure");
     }
 
-    String hostNameWifi = HOST_NAME;
-    hostNameWifi.concat(".local");
-
 ///* initialize EEPROM */
 //if (!EEPROM.begin(EEPROM_SIZE))
 //{
@@ -253,19 +243,9 @@ void setup() {
 	Serial.println("WiFi connected");
 	Serial.println("IP address: ");
 	Serial.println(WiFi.localIP());
-	if (MDNS.begin(HOST_NAME)) {
-        Serial.print("* MDNS responder started. Hostname -> ");
-        Serial.println(HOST_NAME);
+	if (MDNS.begin("esp32")) {
+		Serial.println("MDNS responder started");
 	}
-
-	MDNS.addService("telnet", "tcp", 23); //Start Telnet for RemoteDebug
-
-	// Initialize RemoteDebug
-
-	Debug.begin(HOST_NAME); // Initialize the WiFi server
-    Debug.setResetCmdEnabled(true); // Enable the reset command
-	Debug.showProfiler(true); // Profiler (Good to measure times, to optimize codes)
-	Debug.showColors(true); // Colors
 
 	server.on("/", handleRoot);
 	server.on("/status.json", updateStatus);
@@ -287,52 +267,6 @@ void setup() {
 	if (!mqtt_client.connected()) {
 		mqttconnect();
 	}
-
-///////////////////////////////////////
-//			Arduino OTA				//
-//////////////////////////////////////
-
-// Port defaults to 3232
-// ArduinoOTA.setPort(3232);
-
-// Hostname defaults to esp3232-[MAC]
-// ArduinoOTA.setHostname("myesp32");
-
-// No authentication by default
-// ArduinoOTA.setPassword("admin");
-
-// Password can be set with it's md5 value as well
-// MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
-// ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
-
-  ArduinoOTA
-    .onStart([]() {
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH)
-        type = "sketch";
-      else // U_SPIFFS
-        type = "filesystem";
-
-      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-      Serial.println("Start updating " + type);
-    })
-    .onEnd([]() {
-      Serial.println("\nEnd");
-    })
-    .onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    })
-    .onError([](ota_error_t error) {
-      Serial.printf("Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-      else if (error == OTA_END_ERROR) Serial.println("End Failed");
-    });
-
-  ArduinoOTA.begin();
-
 } // End setup()
 
 ///////////////////////////////////////
@@ -340,23 +274,9 @@ void setup() {
 //////////////////////////////////////
 void loop() {
 
-ArduinoOTA.handle();
-
-//RemoteDebug examples
-
-debugV("* This is a message of debug level VERBOSE");
-debugD("* This is a message of debug level DEBUG");
-debugI("* This is a message of debug level INFO");
-debugW("* This is a message of debug level WARNING");
-debugE("* This is a message of debug level ERROR");
-
 if ( WiFi.status() == WL_CONNECTED )
   {   	// Main connected loop
   		// ANY MAIN LOOP CODE HERE
-		  
-	if (!mqtt_client.connected()) {
-	mqttconnect();
-	}
 
 	mqtt_client.loop();     // internal household function for MQTT
 
@@ -384,8 +304,6 @@ if ( WiFi.status() == WL_CONNECTED )
 		last_heater = "off";
 	}
 
-    Debug.handle();
-	
 	server.handleClient();
 
 	/* SERIAL RECEIVE FROM SPA KEYBOARD UNIT */
@@ -398,7 +316,6 @@ if ( WiFi.status() == WL_CONNECTED )
 				Serial.println(ctrl_statusSeq, HEX);
 				ctrl_statusByte1 = Ctrl_debug.read();
 				Serial.println(ctrl_statusByte1, HEX);
-				Debug.printf("RECEIVED FROM CTRL: %X %X", ctrl_statusSeq, ctrl_statusByte1);
 
 				switch (ctrl_statusSeq) {
 				case 1: // SPA ON/OFF
@@ -451,7 +368,7 @@ if ( WiFi.status() == WL_CONNECTED )
 		}
 	}
 
-	/* Heartbeat status update */
+		/* Heartbeat status update */
     if(millis() > time_now + heartbeat_inteval){
         mqtt_client.publish("homeassistant/spa_switches/heat_state",heater.c_str());
 		mqtt_client.publish("homeassistant/spa_switches/power_state",power.c_str());
@@ -468,7 +385,6 @@ if ( WiFi.status() == WL_CONNECTED )
 				Serial.println(main_statusSeq, HEX);
 				main_statusByte1 = Main_debug.read();
 				Serial.println(main_statusByte1, HEX);
-				Debug.printf("RECEIVED FROM MAIN: %X %X", main_statusSeq, main_statusByte1);
 
 				switch (main_statusSeq) {
 				case 6: // ACTUAL TEMP

@@ -201,13 +201,13 @@ void mqttconnect() {
 	/* Loop until reconnected */
 	while (!mqtt_client.connected()) {
 		Serial.print("MQTT connecting ...");
-		Debug.printf("MQTT connecting ...");
+		debugD("MQTT connecting ...");
 		/* client ID */
 		String mqtt_clientId = "ESP32Client";
 		/* connect now */
 		if (mqtt_client.connect(mqtt_clientId.c_str(), mqttUser, mqttPassword)) {
 			Serial.println("connected");
-			Debug.printf("MQTT connected!");
+			debugD("MQTT connected!");
 			/* subscribe topic with default QoS 0*/
 			mqtt_client.subscribe("homeassistant/spa_switches");
 		}
@@ -231,7 +231,7 @@ void setup() {
 
     if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
     Serial.println("STA Failed to configure");
-	Debug.printf("STA Failed to configure");
+	debugD("STA Failed to configure");
 	
     }
 
@@ -263,8 +263,8 @@ void setup() {
         Serial.println(HOST_NAME);
 	}
 
-	//MDNS.addService("telnet", "tcp", 23); //Start Telnet for RemoteDebug
-	// MDNS.addService("http", "tcp", 81);   // Web server
+	MDNS.addService("telnet", "tcp", 23); //Start Telnet for RemoteDebug
+	//MDNS.addService("http", "tcp", 81);   // Web server
 	
 	// Initialize debug webserver
 
@@ -275,24 +275,24 @@ void setup() {
 	
 	// Initialize RemoteDebug
 
-	// Debug.begin(HOST_NAME); // Initialize the WiFi server
-    // Debug.setResetCmdEnabled(true); // Enable the reset command
-	// Debug.showProfiler(true); // Profiler (Good to measure times, to optimize codes)
-	// Debug.showColors(true); // Colors
+	Debug.begin(HOST_NAME); // Initialize the WiFi server
+    Debug.setResetCmdEnabled(true); // Enable the reset command
+	Debug.showProfiler(true); // Profiler (Good to measure times, to optimize codes)
+	Debug.showColors(true); // Colors
 
 	// MSPA WebServer init
 
-	// server.on("/", handleRoot);
-	// server.on("/status.json", updateStatus);
-	// server.on("/setTemp", handleTemp);
-	// server.on("/setPower", handlePower);
-	// server.on("/setHeater", handleHeater);
+	server.on("/", handleRoot);
+	server.on("/status.json", updateStatus);
+	server.on("/setTemp", handleTemp);
+	server.on("/setPower", handlePower);
+	server.on("/setHeater", handleHeater);
 
-	// server.onNotFound(handleNotFound);
+	server.onNotFound(handleNotFound);
 
-	// server.begin();
-	// Serial.println("HTTP server started");
-	// Debug.printf("HTTP Server started!");
+	server.begin();
+	Serial.println("Telnet debug server started");
+	debugD("Telnet debug server started!");
 
 	/* configure the MQTT server with IPaddress and port */
 	mqtt_client.setServer(mqtt_server, 1883);
@@ -321,33 +321,33 @@ void setup() {
   // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
   // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
 
-//   ArduinoOTA
-//     .onStart([]() {
-//       String type;
-//       if (ArduinoOTA.getCommand() == U_FLASH)
-//         type = "sketch";
-//       else // U_SPIFFS
-//         type = "filesystem";
+  ArduinoOTA
+    .onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else // U_SPIFFS
+        type = "filesystem";
 
-//       // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-//       Serial.println("Start updating " + type);
-//     })
-//     .onEnd([]() {
-//       Serial.println("\nEnd");
-//     })
-//     .onProgress([](unsigned int progress, unsigned int total) {
-//       Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-//     })
-//     .onError([](ota_error_t error) {
-//       Serial.printf("Error[%u]: ", error);
-//       if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-//       else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-//       else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-//       else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-//       else if (error == OTA_END_ERROR) Serial.println("End Failed");
-//     });
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      Serial.println("Start updating " + type);
+    })
+    .onEnd([]() {
+      Serial.println("\nEnd");
+    })
+    .onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    })
+    .onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
 
-//   ArduinoOTA.begin();
+   ArduinoOTA.begin();
 
 } // End setup()
 
@@ -356,7 +356,7 @@ void setup() {
 //////////////////////////////////////
 void loop() {
 
-//ArduinoOTA.handle();
+ArduinoOTA.handle();
 
 //RemoteDebug examples
 
@@ -370,9 +370,9 @@ if ( WiFi.status() == WL_CONNECTED )
   {   	// Main connected loop
   		// ANY MAIN LOOP CODE HERE
 		  
-	// if (!mqtt_client.connected()) {
-	// mqttconnect();
-	// }
+	 if (!mqtt_client.connected()) {
+	 mqttconnect();
+	 }
 
 	mqtt_client.loop();     // internal household function for MQTT
 
@@ -400,7 +400,7 @@ if ( WiFi.status() == WL_CONNECTED )
 		last_heater = "off";
 	}
 
-    //Debug.handle();
+    Debug.handle();
 	
 	server.handleClient();
 
@@ -414,7 +414,7 @@ if ( WiFi.status() == WL_CONNECTED )
 				Serial.println(ctrl_statusSeq, HEX);
 				ctrl_statusByte1 = Ctrl_debug.read();
 				Serial.println(ctrl_statusByte1, HEX);
-				//debugD("RECEIVED FROM CTRL: %X %X", ctrl_statusSeq, ctrl_statusByte1);
+				debugD("RECEIVED FROM CTRL: %X %X", ctrl_statusSeq, ctrl_statusByte1);
 
 				switch (ctrl_statusSeq) {
 				case 1: // SPA ON/OFF
@@ -484,14 +484,14 @@ if ( WiFi.status() == WL_CONNECTED )
 				Serial.println(main_statusSeq, HEX);
 				main_statusByte1 = Main_debug.read();
 				Serial.println(main_statusByte1, HEX);
-				//debugD("RECEIVED FROM MAIN: %X %X", main_statusSeq, main_statusByte1);
+				debugD("RECEIVED FROM MAIN: %X %X", main_statusSeq, main_statusByte1);
 
 				switch (main_statusSeq) {
 				case 6: // ACTUAL TEMP
 					Serial.print("Actual Temp: ");
 					Serial.println(main_statusByte1, DEC);
 					act_temp = (int)main_statusByte1;
-					mqtt_client.publish("homeassistant/spa_sensors/temp", (char*)act_temp);
+					//mqtt_client.publish("homeassistant/spa_sensors/temp", (char*)act_temp);
 					break;
 				case 7: // SEKVENS 7
 					Serial.print("Sekvens 7, Value: ");

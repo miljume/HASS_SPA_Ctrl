@@ -62,6 +62,9 @@ String ozone = "off";
 String last_power = "off";
 String last_heater = "off";
 String startup_status = "off";
+String act_temp_str;
+
+char act_temp_array[50];
 
 /* Function Declarations */
 void spa_on_off(void);
@@ -491,7 +494,9 @@ if ( WiFi.status() == WL_CONNECTED )
 					Serial.print("Actual Temp: ");
 					Serial.println(main_statusByte1, DEC);
 					act_temp = (int)main_statusByte1;
-					//mqtt_client.publish("homeassistant/spa_sensors/temp", (char*)act_temp);
+					act_temp_str = String(act_temp);
+					act_temp_str.toCharArray(act_temp_array, act_temp_str.length()+1);
+					mqtt_client.publish("homeassistant/spa_sensors/temp", act_temp_array);
 					break;
 				case 7: // SEKVENS 7
 					Serial.print("Sekvens 7, Value: ");

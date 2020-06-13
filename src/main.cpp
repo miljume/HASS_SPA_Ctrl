@@ -42,7 +42,7 @@ String getSsid;
 String getPass;
 String MAC;
 
-int heartbeat_inteval = 30000;
+int heartbeat_inteval = 10000;
 unsigned long time_now = 0;
 
 // SSID storage

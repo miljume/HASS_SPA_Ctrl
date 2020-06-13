@@ -474,7 +474,9 @@ if ( WiFi.status() == WL_CONNECTED )
     if(millis() > time_now + heartbeat_inteval){
         mqtt_client.publish("homeassistant/spa_switches/heat_state",heater.c_str());
 		mqtt_client.publish("homeassistant/spa_switches/power_state",power.c_str());
-		mqtt_client.publish("homeassistant/spa_sensors/temp", act_temp_array);
+		if (act_temp < 43){
+			mqtt_client.publish("homeassistant/spa_sensors/temp", act_temp_array);
+		}
 		time_now = millis();
 	}
 
@@ -899,6 +901,7 @@ void IP_info()
 
   Serial.printf( "\n\n\tSSID\t%s, ", getSsid.c_str() );
   Serial.print( rssi);  Serial.printf(" dBm\n" );  // printf??
+  debugD("WiFi Signalstyrka: %d dBm", rssi);
   Serial.printf( "\tPass:\t %s\n", getPass.c_str() ); 
   Serial.print( "\n\n\tIP address:\t" );  Serial.print(WiFi.localIP() );
   Serial.print( " / " );              Serial.println( WiFi.subnetMask() );

@@ -15,7 +15,10 @@
 #include <ESP32WebServer.h>
 #include <string.h>
 #include <Preferences.h> // WiFi storage
-#include "index.h" 
+#include "index.h"
+#include <RemoteDebug.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 
 // IP Config
 IPAddress local_IP(192, 168, 0, 90);
@@ -49,6 +52,8 @@ unsigned long time_now = 0;
 // Change to monitor live values from SPA Unit
 #define spa_ctrl_serial 1
 #define spa_main_serial 1
+
+#define HOST_NAME "mspa"
 
 String power = "off";
 String heater = "off";
@@ -100,6 +105,8 @@ String getMacAddress(void);
 
 ESP32WebServer server(80);
 //ESP32WebServer debug_server(81);
+
+RemoteDebug Debug; // Enable RemoteDebug
 
 int temperature = 38;
 int act_temp = 0;
@@ -231,6 +238,9 @@ void setup() {
 	
     }
 
+    String hostNameWifi = HOST_NAME;
+    hostNameWifi.concat(".local");
+
 ///* initialize EEPROM */
 //if (!EEPROM.begin(EEPROM_SIZE))
 //{
@@ -251,8 +261,9 @@ void setup() {
 	Serial.println("WiFi connected");
 	Serial.println("IP address: ");
 	Serial.println(WiFi.localIP());
-	if (MDNS.begin("esp32")) {
-		Serial.println("MDNS responder started");
+	if (MDNS.begin(HOST_NAME)) {
+        Serial.print("* MDNS responder started. Hostname -> ");
+        Serial.println(HOST_NAME);
 	}
 
 	MDNS.addService("telnet", "tcp", 23); //Start Telnet for RemoteDebug
@@ -341,14 +352,13 @@ void setup() {
 
    ArduinoOTA.begin();
 
-
 } // End setup()
 
 ///////////////////////////////////////
 //			Main loop				//
 //////////////////////////////////////
 void loop() {
-  
+
 ArduinoOTA.handle();
 
 //RemoteDebug examples
@@ -366,10 +376,6 @@ if ( WiFi.status() == WL_CONNECTED )
 	 if (!mqtt_client.connected()) {
 	 mqttconnect();
 	 }
-
-if ( WiFi.status() == WL_CONNECTED )
-  {   	// Main connected loop
-  		// ANY MAIN LOOP CODE HERE
 
 	mqtt_client.loop();     // internal household function for MQTT
 
@@ -397,6 +403,8 @@ if ( WiFi.status() == WL_CONNECTED )
 		last_heater = "off";
 	}
 
+    Debug.handle();
+	
 	server.handleClient();
 
 	/* SERIAL RECEIVE FROM SPA KEYBOARD UNIT */
@@ -409,7 +417,6 @@ if ( WiFi.status() == WL_CONNECTED )
 				Serial.println(ctrl_statusSeq, HEX);
 				ctrl_statusByte1 = Ctrl_debug.read();
 				Serial.println(ctrl_statusByte1, HEX);
-
 				debugD("RECEIVED FROM CTRL: %X %X", ctrl_statusSeq, ctrl_statusByte1);
 
 				switch (ctrl_statusSeq) {
@@ -463,7 +470,7 @@ if ( WiFi.status() == WL_CONNECTED )
 		}
 	}
 
-		/* Heartbeat status update */
+	/* Heartbeat status update */
     if(millis() > time_now + heartbeat_inteval){
         mqtt_client.publish("homeassistant/spa_switches/heat_state",heater.c_str());
 		mqtt_client.publish("homeassistant/spa_switches/power_state",power.c_str());
@@ -483,7 +490,6 @@ if ( WiFi.status() == WL_CONNECTED )
 				Serial.println(main_statusSeq, HEX);
 				main_statusByte1 = Main_debug.read();
 				Serial.println(main_statusByte1, HEX);
-
 				debugD("RECEIVED FROM MAIN: %X %X", main_statusSeq, main_statusByte1);
 
 				switch (main_statusSeq) {
@@ -491,12 +497,8 @@ if ( WiFi.status() == WL_CONNECTED )
 					Serial.print("Actual Temp: ");
 					Serial.println(main_statusByte1, DEC);
 					act_temp = (int)main_statusByte1;
-
 					act_temp_str = String(act_temp);
 					act_temp_str.toCharArray(act_temp_array, act_temp_str.length()+1);
-
-					//mqtt_client.publish("homeassistant/spa_sensors/temp", (char*)act_temp);
-
 					break;
 				case 7: // SEKVENS 7
 					Serial.print("Sekvens 7, Value: ");
